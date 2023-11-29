@@ -1,0 +1,132 @@
+% Define initial conditions and time span
+% Initial position vectors for the three particles in 3D
+r1_0 = [100; 0; 0];
+r2_0 = [-50; 86.6025; 0];
+r3_0 = [-50; -86.6025; 0];
+
+% Adjusted initial velocity vectors for interaction
+v1_0 = [-0.0001; 0.0001; 0];
+v2_0 = [0.0001; 0; 0];
+v3_0 = [0.0001; -0.0001; 0];
+
+% Concatenate initial conditions into one vector
+x0 = [r1_0; v1_0; r2_0; v2_0; r3_0; v3_0];
+
+
+t_span =[0 10000000]; % Adjust as needed
+
+% Masses of the particles
+m1 = 1; % Mass of particle 1
+m2 = 1; % Mass of particle 2
+m3 = 1; % Mass of particle 3
+
+% Set options for the ODE solver
+options = odeset('AbsTol', 1e-12, 'RelTol', 1e-10);
+
+% Solve the ODEs using ode45 solver
+[t, x] = ode45(@(t, x) numerical_sol_3bp_3D(t, x, m1, m2, m3), t_span, x0, options);
+
+
+% Plot the trajectories in 3D space
+figure;
+plot3(x(:,1), x(:,2), x(:,3), 'r', x(:,7), x(:,8), x(:,9), 'g', x(:,13), x(:,14), x(:,15), 'b');
+grid on;
+xlabel('X');
+ylabel('Y');
+zlabel('Z');
+title('Trajectories of Three Particles');
+legend('Particle 1', 'Particle 2', 'Particle 3');
+
+% Initialize arrays for energy and angular momentum
+E_total = zeros(size(t));
+L_total = zeros(length(t), 3);
+R_hyper = zeros(size(t));
+
+% Constants
+G = 6.67430e-11; % Gravitational constant
+
+% Initialize arrays for distances
+r12_array = zeros(size(t));
+r23_array = zeros(size(t));
+r31_array = zeros(size(t));
+
+for i = 1:length(t)
+    % Extract positions and velocities
+    r1 = x(i, 1:3);
+    v1 = x(i, 4:6);
+    r2 = x(i, 7:9);
+    v2 = x(i, 10:12);
+    r3 = x(i, 13:15);
+    v3 = x(i, 16:18);
+
+    % Calculate hyperradius
+    r12 = norm(r2 - r1);
+    r23 = norm(r3 - r2);
+    r31 = norm(r1 - r3);
+    R_hyper(i) = sqrt(r12^2 + r23^2 + r31^2);
+
+    % Calculate distances
+    r12_array(i) = norm(r2 - r1);
+    r23_array(i) = norm(r3 - r2);
+    r31_array(i) = norm(r1 - r3);
+
+    % Kinetic energies
+    K1 = 0.5 * m1 * norm(v1)^2;
+    K2 = 0.5 * m2 * norm(v2)^2;
+    K3 = 0.5 * m3 * norm(v3)^2;
+
+    % Potential energies
+    V12 = -G * m1 * m2 / norm(r2 - r1);
+    V23 = -G * m2 * m3 / norm(r3 - r2);
+    V31 = -G * m3 * m1 / norm(r1 - r3);
+
+    % Total energy
+    E_total(i) = K1 + K2 + K3 + V12 + V23 + V31;
+
+    % Angular momentum
+    L1 = cross(r1, m1 * v1);
+    L2 = cross(r2, m2 * v2);
+    L3 = cross(r3, m3 * v3);
+    L_total(i, :) = L1 + L2 + L3;
+end
+
+% Calculate the magnitude of the total angular momentum
+L_magnitude = sqrt(sum(L_total.^2, 2));
+
+% Plot total energy over time
+figure;
+plot(t, E_total);
+xlabel('Time');
+ylabel('Total Energy');
+title('Total Energy over Time');
+
+% Plot total angular momentum over time
+figure;
+plot(t, L_total);
+xlabel('Time');
+ylabel('Angular Momentum');
+title('Total Angular Momentum over Time');
+legend('Lx', 'Ly', 'Lz');
+
+% Plot total energy vs hyperradius
+figure;
+plot(R_hyper, E_total);
+xlabel('Hyperradius');
+ylabel('Total Energy');
+title('Total Energy vs Hyperradius');
+
+
+% Plot total angular momentum magnitude vs hyperradius
+figure;
+plot(R_hyper, L_magnitude);
+xlabel('Hyperradius');
+ylabel('Magnitude of Total Angular Momentum');
+title('Total Angular Momentum vs Hyperradius');
+
+% Plot r12, r23, and r31 vs time
+figure;
+plot(t, r12_array, 'r', t, r23_array, 'g', t, r31_array, 'b');
+xlabel('Time');
+ylabel('Distance');
+title('Inter-Particle Distances vs Time');
+legend('r_{12}', 'r_{23}', 'r_{31}');
